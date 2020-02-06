@@ -47,53 +47,64 @@ int main()
     cudaMemcpy(matdev, mathost, N * N * sizeof(int),
                 cudaMemcpyHostToDevice);
 
-    int griddim = ceil((float)N / 1024);
-    dim3 block1(32, 32);
-    per_row_kernel <<< griddim, block1 >>> (matdev, N);
+
+
+    // Kernel 1
+    // int griddim = ceil((float)N / 1024);
+    // dim3 block1(32, 32);
+    // per_row_kernel <<< griddim, block1 >>> (matdev, N);
+    // cudaDeviceSynchronize();
+
+    // cudaMemcpy(resmat, matdev, N * N * sizeof(int),
+    //            cudaMemcpyDeviceToHost);
+
+    // printf("\n");
+    // print_matrix(resmat, N);
+
+    // printf("%d\n", check_if_transpose(mathost, resmat, N));
+
+
+
+    // Kernel 2
+    // int griddim2 = ceil((float)(N * N) / (1024 * 32 * 32));
+    // dim3 grid1(griddim2, 32, 32);
+    // per_element_kernel << <grid1, 1024 >> > (matdev, N);
+    // cudaDeviceSynchronize();
+
+    // cudaMemcpy(resmat, matdev, N * N * sizeof(int),
+    //             cudaMemcpyDeviceToHost);
+
+    // printf("\n");
+    // print_matrix(resmat, N);
+
+    // printf("Is transpose: %d\n", check_if_transpose(mathost, resmat, N));
+
+
+
+    // Kernel 3
+    int griddim3 = ceil((float)(N * N) / (1024 * 32));
+    dim3 grid2(griddim3, 32);
+    dim3 block2(32, 32);
+    per_element_kernel_2D <<< grid2, block2 >>>(matdev, N);
     cudaDeviceSynchronize();
 
     cudaMemcpy(resmat, matdev, N * N * sizeof(int),
-	           cudaMemcpyDeviceToHost);
+                cudaMemcpyDeviceToHost);
 
-
-	printf("\n");
+    printf("\n");
     // print_matrix(resmat, N);
 
-    printf("%d\n", check_if_transpose(mathost, resmat, N));
+    printf("Is transpose: %d\n", check_if_transpose(mathost, resmat, N));
 
-	griddim = ceil((float)N * N / 1024 * 32 * 32);
-	dim3 grid1(griddim, 32, 32);
-	// per_element_kernel << <grid1, 1024 >> > (matdev, N);
-	// cudaDeviceSynchronize();
+    // for (i = 0; i < N; i++)
+    // {
+    //  for (j = i + 1; j < N; j++)
+    //  {
+    //      int temp = mathost[i * N + j];
+    //      mathost[i * N + j] = mathost[j * N + i];
+    //      mathost[j * N + i] = temp;
+    //  }
+    // }
 
-	// cudaMemcpy(mathost, matdev, N * N * sizeof(int),
-	// 	cudaMemcpyDeviceToHost);
-
-	// printf("\n");
-    // print_matrix(mathost, N);
-
-	griddim = ceil((float)N * N / 1024 * 32);
-	dim3 grid2(griddim, 32);
-	dim3 block2(32, 32);
-	// per_element_kernel_2D << <grid2, block2 >> > (matdev, N);
-	// cudaDeviceSynchronize();
-
-	// cudaMemcpy(mathost, matdev, N * N * sizeof(int),
-	// 	cudaMemcpyDeviceToHost);
-
-	// printf("\n");
-    // print_matrix(mathost, N);
-
-	// for (i = 0; i < N; i++)
-	// {
-	// 	for (j = i + 1; j < N; j++)
-	// 	{
-	// 		int temp = mathost[i * N + j];
-	// 		mathost[i * N + j] = mathost[j * N + i];
-	// 		mathost[j * N + i] = temp;
-	// 	}
-	// }
-
-	printf("\n");
-    // print_matrix(mathost, N);
+    printf("\n");
 }

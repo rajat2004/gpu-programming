@@ -15,10 +15,40 @@ __global__ void per_row_kernel(int *in, int N) {
 }
 
 __global__ void per_element_kernel(int *in, int N) {
-    
+    long long unsigned blockId = blockIdx.x + (blockIdx.y * gridDim.x) + (blockIdx.z * gridDim.x * gridDim.y);
+    long long unsigned threadId = blockId * blockDim.x + threadIdx.x;
+
+    // printf("ThreadId: %llu\n", threadId);
+
+    int row = threadId / N;
+    int col = threadId % N;
+
+    // printf("Row: %d, Col: %d\n", row, col);
+
+    if (row < N && col < N && row < col) {
+        // printf("Row: %d, Col: %d\n", row, col);
+        int temp = in[row * N + col];
+        in[row*N + col] = in[col*N + row];
+        in[col*N + row] = temp;
+    }
 }
 
-__global__ void per_element_kernel_2D(int *in, int N);
+__global__ void per_element_kernel_2D(int *in, int N) {
+    long long unsigned blockId = blockIdx.x + (blockIdx.y * gridDim.x);
+    long long unsigned threadId = (blockId * blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+
+    int row = threadId / N;
+    int col = threadId % N;
+
+    // printf("Row: %d, Col: %d\n", row, col);
+
+    if (row < N && col < N && row < col) {
+        // printf("Row: %d, Col: %d\n", row, col);
+        int temp = in[row * N + col];
+        in[row*N + col] = in[col*N + row];
+        in[col*N + row] = temp;
+    }
+}
 
 #endif
 
