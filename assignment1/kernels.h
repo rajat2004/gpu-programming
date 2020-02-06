@@ -25,11 +25,11 @@ __global__ void per_element_kernel(int *in, int N) {
 
     // printf("Row: %d, Col: %d\n", row, col);
 
-    if (row < N && col < N && row < col) {
+    if (row < N && row < col) {
         // printf("Row: %d, Col: %d\n", row, col);
-        int temp = in[row * N + col];
+        // int temp = in[row*N + col];
         in[row*N + col] = in[col*N + row];
-        in[col*N + row] = temp;
+        in[col*N + row] = 0;
     }
 }
 
@@ -42,11 +42,11 @@ __global__ void per_element_kernel_2D(int *in, int N) {
 
     // printf("Row: %d, Col: %d\n", row, col);
 
-    if (row < N && col < N && row < col) {
+    if (row < N && row < col) {
         // printf("Row: %d, Col: %d\n", row, col);
-        int temp = in[row * N + col];
+        // int temp = in[row*N + col];
         in[row*N + col] = in[col*N + row];
-        in[col*N + row] = temp;
+        in[col*N + row] = 0;
     }
 }
 

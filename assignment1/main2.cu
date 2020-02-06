@@ -50,38 +50,44 @@ int main()
 
 
     // Kernel 1
-    // int griddim = ceil((float)N / 1024);
-    // dim3 block1(32, 32);
-    // per_row_kernel <<< griddim, block1 >>> (matdev, N);
-    // cudaDeviceSynchronize();
+    int griddim = ceil((float)N / 1024);
+    dim3 block1(32, 32);
+    per_row_kernel <<< griddim, block1 >>> (matdev, N);
+    cudaDeviceSynchronize();
 
-    // cudaMemcpy(resmat, matdev, N * N * sizeof(int),
-    //            cudaMemcpyDeviceToHost);
+    cudaMemcpy(resmat, matdev, N * N * sizeof(int),
+               cudaMemcpyDeviceToHost);
 
-    // printf("\n");
+    printf("\n");
     // print_matrix(resmat, N);
 
-    // printf("%d\n", check_if_transpose(mathost, resmat, N));
+    printf("Is Transpose (Kernel1): %d\n", check_if_transpose(mathost, resmat, N));
 
 
 
     // Kernel 2
-    // int griddim2 = ceil((float)(N * N) / (1024 * 32 * 32));
-    // dim3 grid1(griddim2, 32, 32);
-    // per_element_kernel << <grid1, 1024 >> > (matdev, N);
-    // cudaDeviceSynchronize();
+    cudaMemcpy(matdev, mathost, N * N * sizeof(int),
+                cudaMemcpyHostToDevice);
 
-    // cudaMemcpy(resmat, matdev, N * N * sizeof(int),
-    //             cudaMemcpyDeviceToHost);
+    int griddim2 = ceil((float)(N * N) / (1024 * 32 * 32));
+    dim3 grid1(griddim2, 32, 32);
+    per_element_kernel << <grid1, 1024 >> > (matdev, N);
+    cudaDeviceSynchronize();
 
-    // printf("\n");
+    cudaMemcpy(resmat, matdev, N * N * sizeof(int),
+                cudaMemcpyDeviceToHost);
+
+    printf("\n");
     // print_matrix(resmat, N);
 
-    // printf("Is transpose: %d\n", check_if_transpose(mathost, resmat, N));
+    printf("Is transpose(Kernel2): %d\n", check_if_transpose(mathost, resmat, N));
 
 
 
     // Kernel 3
+    cudaMemcpy(matdev, mathost, N * N * sizeof(int),
+                cudaMemcpyHostToDevice);
+
     int griddim3 = ceil((float)(N * N) / (1024 * 32));
     dim3 grid2(griddim3, 32);
     dim3 block2(32, 32);
@@ -94,7 +100,7 @@ int main()
     printf("\n");
     // print_matrix(resmat, N);
 
-    printf("Is transpose: %d\n", check_if_transpose(mathost, resmat, N));
+    printf("Is transpose(Kernel3): %d\n", check_if_transpose(mathost, resmat, N));
 
     // for (i = 0; i < N; i++)
     // {
