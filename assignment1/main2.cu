@@ -22,19 +22,13 @@ bool check_if_transpose(int* mat1, int* mat2, int n) {
 
 int main()
 {
-	long long unsigned N,i,j;
-	scanf("%llu", &N);
-	int* mathost, * matdev, *resmat;
-	mathost = (int*)malloc(N * N * sizeof(int));
+    long long unsigned N,i,j;
+    scanf("%llu", &N);
+    int* mathost, * matdev, *resmat;
+    mathost = (int*)malloc(N * N * sizeof(int));
     resmat = (int*)malloc(N*N*sizeof(int));
-	cudaMalloc(&matdev, N * N * sizeof(int));
-	// for (i = 0; i < N; i++)
-	// {
-	// 	for (j = 0; j < N; j++)
-	// 	{
-	// 		scanf("%d", &mathost[i * N + j]);
-	// 	}
-	// }
+    cudaMalloc(&matdev, N * N * sizeof(int));
+
 
     // print_matrix(mathost, N);
 
@@ -50,27 +44,19 @@ int main()
 
     // print_matrix(mathost, N);
 
-	cudaMemcpy(matdev, mathost, N * N * sizeof(int),
-		cudaMemcpyHostToDevice);
+    cudaMemcpy(matdev, mathost, N * N * sizeof(int),
+                cudaMemcpyHostToDevice);
 
-	int griddim = ceil((float)N / 1024);
-	dim3 block1(32, 32);
-	per_row_kernel << <griddim, block1 >> > (matdev, N);
-	cudaDeviceSynchronize();
+    int griddim = ceil((float)N / 1024);
+    dim3 block1(32, 32);
+    per_row_kernel <<< griddim, block1 >>> (matdev, N);
+    cudaDeviceSynchronize();
 
-	cudaMemcpy(resmat, matdev, N * N * sizeof(int),
-		cudaMemcpyDeviceToHost);
+    cudaMemcpy(resmat, matdev, N * N * sizeof(int),
+	           cudaMemcpyDeviceToHost);
 
 
 	printf("\n");
-	// for (i = 0; i < N; i++)
-	// {
-	// 	for (j = 0; j < N; j++)
-	// 	{
-	// 		printf("%d ", mathost[i * N + j]);
-	// 	}
-	// 	printf("\n");
-	// }
     // print_matrix(resmat, N);
 
     printf("%d\n", check_if_transpose(mathost, resmat, N));
@@ -84,14 +70,6 @@ int main()
 	// 	cudaMemcpyDeviceToHost);
 
 	// printf("\n");
-	// for (i = 0; i < N; i++)
-	// {
-	// 	for (j = 0; j < N; j++)
-	// 	{
-	// 		printf("%d ", mathost[i * N + j]);
-	// 	}
-	// 	printf("\n");
-	// }
     // print_matrix(mathost, N);
 
 	griddim = ceil((float)N * N / 1024 * 32);
@@ -104,14 +82,6 @@ int main()
 	// 	cudaMemcpyDeviceToHost);
 
 	// printf("\n");
-	// for (i = 0; i < N; i++)
-	// {
-	// 	for (j = 0; j < N; j++)
-	// 	{
-	// 		printf("%d ", mathost[i * N + j]);
-	// 	}
-	// 	printf("\n");
-	// }
     // print_matrix(mathost, N);
 
 	// for (i = 0; i < N; i++)
@@ -125,13 +95,5 @@ int main()
 	// }
 
 	printf("\n");
-	// for (i = 0; i < N; i++)
-	// {
-	// 	for (j = 0; j < N; j++)
-	// 	{
-	// 		printf("%d ", mathost[i * N + j]);
-	// 	}
-	// 	printf("\n");
-	// }
     // print_matrix(mathost, N);
 }
