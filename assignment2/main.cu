@@ -3,9 +3,6 @@
 #include<stdlib.h>
 #include"cuda.h"
 
-#ifndef min
-    #define min(a,b) ((a)<(b) ? (a):(b))
-#endif
 
 void print_matrix(int* mat, int rows, int cols) {
     for(int i=0; i<rows; i++) {
@@ -16,33 +13,15 @@ void print_matrix(int* mat, int rows, int cols) {
     }
 }
 
-int cpu_func(int* mat, int* res, int n, int m, int k=1) {
-    int min_el = INT_MAX;
-    int last_row = n*(m+1);
-    for(int i=0; i<n; i++) {
-        int row = i*(m+1);
-        for(int j=0; j<m; j++) {
-            res[row + m] += mat[row+j];
-            res[last_row + j] += mat[row+j];
-        }
-        min_el = min(min_el, res[row+m]);
-    }
-    for(int j=0; j<m; j++) {
-        min_el = min(min_el, res[last_row+j]);
-    }
-    // res[last_row+m] = min_el;
-    return min_el;
-}
-
 
 __global__ void sumRandC(int* mat, int n, int m, int k) {
-    int threadId1 = blockIdx.x * blockDim.x + threadIdx.x;
-    int threadId = threadId1*k;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int index = tid*k;
 
-    // printf("%d\n", threadId);
+    // printf("%d\n", index);
 
-    int orig_row = threadId / m;
-    int orig_col = threadId % m;
+    int orig_row = index / m;
+    int orig_col = index % m;
 
     int last_row = n*(m+1);
     int row=orig_row, col=orig_col;
@@ -66,24 +45,29 @@ __global__ void sumRandC(int* mat, int n, int m, int k) {
 // Min value to be added to each element
 __device__ int min_el = INT_MAX;
 
-__global__ void findMin(int* mat, int n, int m) {
+__global__ void findMin(int* mat, int n, int m, int k) {
     int tid = blockIdx.x*blockDim.x + threadIdx.x;
+    int orig_index = tid*k;
     int val = INT_MAX;
+    int index = orig_index;
 
-    if(tid < n) {
-        // Check in last col of each row
-        val = mat[tid*(m+1)+m];
+    for (int i=0; i<k; i++) {
+        index = orig_index + i;
+
+        if (index < n) {
+            // Check in last col of each row
+            val = mat[index*(m+1) + m];
+        }
+        else if (index < n+m) {
+            // Check in last row
+            val = mat[n*(m+1) + (index-n)];
+        }
+        else
+            return;
+
+        if (min_el > val)
+            atomicMin(&min_el, val);
     }
-    else if (tid < n+m) {
-        // Check in last row
-        val = mat[n*(m+1) + (tid-n)];
-    }
-    else
-        return;
-
-    if (min_el > val)
-        atomicMin(&min_el, val);
-
 }
 
 __global__ void updateMin(int* mat, int rows, int cols, int k) {
@@ -101,11 +85,11 @@ __global__ void updateMin(int* mat, int rows, int cols, int k) {
 int main() {
     int n,m,k;
     scanf("%d %d %d", &n, &m, &k);
-    int *mat, *res, *dmat;
+    int *mat, *dmat;
     mat = (int*)calloc((n+1)*(m+1), sizeof(int));
-    res = (int*)calloc((n+1)*(m+1), sizeof(int));
+
     cudaMalloc(&dmat, (n+1)*(m+1)*sizeof(int));
-    // cudaMalloc(&min_el, sizeof(int));
+
 
     for(int i=0; i<n; i++) {
         int row = i*(m+1);
@@ -121,26 +105,23 @@ int main() {
     //     }
     // }
 
-    // memcpy(res, mat, (n+1)*(m+1)*sizeof(int));
-    // cpu_func(mat, res, n, m);
+
     cudaMemcpy(dmat, mat, (n+1)*(m+1)*sizeof(int), cudaMemcpyHostToDevice);
     int gridDim = ceil((float)(n*m) / (1024*k) );
-    // printf("%d\n", gridDim);
     sumRandC<<<gridDim, 1024>>>(dmat, n, m, k);
 
     cudaDeviceSynchronize();
 
-    gridDim = ceil((float)(n+m)/1024);
-    findMin<<<gridDim, 1024>>>(dmat, n, m);
+    gridDim = ceil((float)(n+m)/(1024*k));
+    findMin<<<gridDim, 1024>>>(dmat, n, m, k);
 
     cudaDeviceSynchronize();
 
     gridDim = ceil((float)((n+1)*(m+1)) / (1024*k) );
     updateMin<<<gridDim, 1024>>>(dmat, n+1, m+1, k);
 
-    cudaMemcpy(res, dmat, (n+1)*(m+1)*sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(mat, dmat, (n+1)*(m+1)*sizeof(int), cudaMemcpyDeviceToHost);
 
-    // printf("\n");
-    print_matrix(res,n+1,m+1);
+    print_matrix(mat,n+1,m+1);
     return 0;
 }
