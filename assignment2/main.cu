@@ -50,6 +50,7 @@ __global__ void findMin(int* mat, int n, int m, int k) {
     int orig_index = tid*k;
     int val = INT_MAX;
     int index = orig_index;
+    int thread_min = INT_MAX;
 
     for (int i=0; i<k; i++) {
         index = orig_index + i;
@@ -65,9 +66,10 @@ __global__ void findMin(int* mat, int n, int m, int k) {
         else
             return;
 
-        if (min_el > val)
-            atomicMin(&min_el, val);
+        if (thread_min > val)
+            thread_min = val;
     }
+    atomicMin(&min_el, thread_min);
 }
 
 __global__ void updateMin(int* mat, int rows, int cols, int k) {
