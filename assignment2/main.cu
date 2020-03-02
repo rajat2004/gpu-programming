@@ -72,14 +72,28 @@ __global__ void findMin(int* mat, int n, int m, int k) {
     atomicMin(&min_el, thread_min);
 }
 
-__global__ void updateMin(int* mat, int rows, int cols, int k) {
+__global__ void updateMin(int* mat, int n, int m, int k) {
     int tid = blockIdx.x*blockDim.x + threadIdx.x;
     int index = tid*k;
 
-    if (index < rows*cols) {
+    int orig_row = index / m;
+    int orig_col = index % m;
+
+    int row=orig_row, col=orig_col;
+
+    if (row < n) {
         for(int i=0; i<k; i++) {
-            mat[index+i]+=min_el;
+            int oc_plus_i = orig_col+i;
+            
+            col = oc_plus_i%m;
+            row = orig_row + (oc_plus_i/m);
+
+            mat[row*(m+1)+col]+=min_el;
         }
+    }
+
+    if(tid==0) {
+        mat[n*(m+1)+m] = min_el;
     }
 }
 
@@ -119,8 +133,8 @@ int main() {
 
     cudaDeviceSynchronize();
 
-    gridDim = ceil((float)((n+1)*(m+1)) / (1024*k) );
-    updateMin<<<gridDim, 1024>>>(dmat, n+1, m+1, k);
+    gridDim = ceil((float)(n*m) / (1024*k) );
+    updateMin<<<gridDim, 1024>>>(dmat, n, m, k);
 
     cudaMemcpy(mat, dmat, (n+1)*(m+1)*sizeof(int), cudaMemcpyDeviceToHost);
 
