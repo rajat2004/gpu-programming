@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <cuda.h>
 __global__ void dkernel(unsigned *matrix) {
-	unsigned id = threadIdx.x * blockDim.y + threadIdx.y;
+	// unsigned id = threadIdx.x * blockDim.y + threadIdx.y;
+    unsigned id = threadIdx.y * blockDim.x + threadIdx.x;
 	matrix[id] = id;
 }
 #define N	5

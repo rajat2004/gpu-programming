@@ -12,6 +12,9 @@ int main() {
 	scanf("%d", &sz);
 	dynshared<<<1, 32, sz * sizeof(int)>>>(sz);
 	cudaDeviceSynchronize();
+    
+    // cudaError_t err = cudaGetLastError();
+    // printf("error=%d, %s, %s\n", err, cudaGetErrorName(err), cudaGetErrorString(err));
 
 	return 0;
 }
