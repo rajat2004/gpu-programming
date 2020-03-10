@@ -12,16 +12,53 @@ void print_matrix(int* mat, int rows, int cols) {
     }
 }
 
+void print_matrix_file(FILE* f, int* mat, int rows, int cols) {
+    for(int i=0; i<rows; i++) {
+        for(int j=0; j<cols; j++) {
+            fprintf(f, "%d ", mat[i*cols + j]);
+        }
+        fprintf(f, "\n");
+    }
+}
 
-__device__ void update(int *data, int n, int row, int col, int x, int op) {
-    if(op==-1)
-        atomicSub(&data[row*n+col], x);
-    else
-        atomicAdd(&data[row*n+col], x);
+
+// Run query on the specified row
+__device__ void runQuery(int *data, int n, int *query, int row) {
+    int n_queries = query[2];
+    int len = n_queries*3 + 3;
+
+    for(int i=3; i<len; i+=3) {
+        int op = query[i+2];
+
+        if (op == -1)
+            atomicSub(&data[row*n+query[i]-1], query[i+1]);
+        else
+            atomicAdd(&data[row*n+query[i]-1], query[i+1]);
+    }
 }
 
 __global__ void runQueries(int *data, int m, int n, int **queries, int q) {
+    int tid = blockIdx.x*blockDim.x + threadIdx.x;
 
+    if (tid < q) {
+        int *query = queries[tid];
+
+        int col = query[0];
+        int x = query[1];
+
+        if (col==1) {
+            // Primary Key, row x
+            runQuery(data, n, query, x-1);
+        }
+        else {
+            // Search in database
+            for(int row=0; row<m; row++) {
+                if(data[row*n + 1] == x)
+                    runQuery(data, n, query, row);
+            }
+        }
+
+    }
 }
 
 
@@ -30,11 +67,13 @@ int main(int argc, char *argv[]) {
         printf("Usage: ./a.out <input-file-name> <output-file-name>\n");
         return 0;
     }
-    // printf("Opening file\n");
-    // printf("%s\n", argv[0]);
-    // printf("%s\n", argv[1]);
-    // printf("%s\n", argv[2]);
+
     FILE *in = fopen(argv[1], "r");
+    if (in == NULL) {
+        printf("Error opening input file!\n");
+        return -1;
+    }
+
     int m,n;
     fscanf(in, "%d %d", &m, &n);
     // printf("%d, %d\n", m,n);
@@ -52,15 +91,13 @@ int main(int argc, char *argv[]) {
     // print_matrix(data, m, n);
 
     int q;
-    char s[10];              // Assuming every number is less than 1000000000
+    char s[10];                     // Assuming every number is less than 1000000000
 
     fscanf(in, "%d", &q);
 
-    int* queries[q];
+    int* queries[q];                // Storage on CPU
 
-    int* dqueries[q];
-    // int** dqueries;
-    // cudaMalloc(&dqueries, q*sizeof(int*));
+    int* dqueries[q];               // Storage on GPU
 
     for(int i=0; i<q; i++) {
         fscanf(in, "%s", s);
@@ -83,7 +120,7 @@ int main(int argc, char *argv[]) {
 
         queries[i] = (int*)malloc(len*sizeof(int));
 
-        // cudaMalloc(&dqueries[i], len*sizeof(int));
+        // For copying query to GPU
         int *dquery;
         cudaMalloc(&dquery, len*sizeof(int));
 
@@ -104,19 +141,18 @@ int main(int argc, char *argv[]) {
             // printf("%d %d %d\n", queries[i][j], queries[i][j+1], queries[i][j+2]);
         }
 
-        // cudaMemcpy(dqueries[i], queries[i], len*sizeof(int), cudaMemcpyHostToDevice);
         cudaMemcpy(dquery, queries[i], len*sizeof(int), cudaMemcpyHostToDevice);
         dqueries[i] = dquery;
     }
 
-    for(int i=0; i<q; i++) {
-        int len = queries[i][2]*3 + 3;
-        // printf("%d\n", len);
-        for(int j=0; j<len; j++) {
-            printf("%d ", queries[i][j]);
-        }
-        printf("\n");
-    }
+    // for(int i=0; i<q; i++) {
+    //     int len = queries[i][2]*3 + 3;
+    //     // printf("%d\n", len);
+    //     for(int j=0; j<len; j++) {
+    //         printf("%d ", queries[i][j]);
+    //     }
+    //     printf("\n");
+    // }
 
     // Copy Database to GPU
     cudaMemcpy(ddata, data, m*n*sizeof(int), cudaMemcpyHostToDevice);
@@ -129,9 +165,22 @@ int main(int argc, char *argv[]) {
 
     // One query per thread
     int n_blocks = ceil((float)q / 1024);
-
     runQueries<<<n_blocks, 1024>>>(ddata, m, n, dquerieslist, q);
 
+    cudaMemcpy(data, ddata, m*n*sizeof(int), cudaMemcpyDeviceToHost);
+
+    // print_matrix(data, m, n);
+
+    // Output to file
+    FILE *out = fopen(argv[2], "w");
+    if (out == NULL) {
+        printf("Error opening output file!");
+        return -1;
+    }
+    print_matrix_file(out, data, m, n);
+
     fclose(in);
+    fclose(out);
+
     return 0;
 }
