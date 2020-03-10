@@ -37,7 +37,16 @@ __device__ void runQuery(int *data, int n, int *query, int row) {
     }
 }
 
-__global__ void runQueries(int *data, int m, int n, int **queries, int q) {
+__global__ void searchQuery(int* data, int n, int m, int* query, int x) {
+    int tid = blockIdx.x*blockDim.x + threadIdx.x;
+
+    if (tid < m) {
+        if(data[tid*n + 1] == x)
+            runQuery(data, n, query, tid);
+    }
+}
+
+__global__ void runQueries(int* data, int m, int n, int** queries, int q) {
     int tid = blockIdx.x*blockDim.x + threadIdx.x;
 
     if (tid < q) {
@@ -56,6 +65,10 @@ __global__ void runQueries(int *data, int m, int n, int **queries, int q) {
                 if(data[row*n + 1] == x)
                     runQuery(data, n, query, row);
             }
+
+            // Try kernel in kernel
+            // int n_blocks = ceil((float)m / 1024);
+            // searchQuery<<<n_blocks, 1024>>>(data, n, m, query, x);
         }
 
     }
@@ -76,7 +89,6 @@ int main(int argc, char *argv[]) {
 
     int m,n;
     fscanf(in, "%d %d", &m, &n);
-    // printf("%d, %d\n", m,n);
 
     int *data, *ddata;
     data = (int*)malloc(m*n*sizeof(int));
@@ -181,6 +193,15 @@ int main(int argc, char *argv[]) {
 
     fclose(in);
     fclose(out);
+
+    // Free allocated memory
+    free(data);
+    cudaFree(ddata);
+
+    for(int i=0; i<q; i++) {
+        free(queries[i]);
+        cudaFree(dqueries[i]);
+    }
 
     return 0;
 }
