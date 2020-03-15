@@ -37,11 +37,11 @@ __device__ void runQuery(int *data, int n, int *query, int row) {
     }
 }
 
-__global__ void searchQuery(int* data, int n, int m, int* query, int x) {
+__global__ void searchQuery(int* data, int n, int m, int* query, int col, int x) {
     int tid = blockIdx.x*blockDim.x + threadIdx.x;
 
     if (tid < m) {
-        if(data[tid*n + 1] == x)
+        if(data[tid*n + col-1] == x)
             runQuery(data, n, query, tid);
     }
 }
@@ -55,22 +55,15 @@ __global__ void runQueries(int* data, int m, int n, int** queries, int q) {
         int col = query[0];
         int x = query[1];
 
-        if (col==1) {
-            // Primary Key, row x
-            runQuery(data, n, query, x-1);
-        }
-        else {
-            // Search in database
-            for(int row=0; row<m; row++) {
-                if(data[row*n + 1] == x)
-                    runQuery(data, n, query, row);
-            }
-
-            // Try kernel in kernel
-            // int n_blocks = ceil((float)m / 1024);
-            // searchQuery<<<n_blocks, 1024>>>(data, n, m, query, x);
+        // Search in database
+        for(int row=0; row<m; row++) {
+            if(data[row*n + col-1] == x)
+                runQuery(data, n, query, row);
         }
 
+        // Try kernel in kernel
+        // int n_blocks = ceil((float)m / 1024);
+        // searchQuery<<<n_blocks, 1024>>>(data, n, m, query, col, x);
     }
 }
 
