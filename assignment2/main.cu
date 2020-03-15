@@ -105,7 +105,7 @@ int main() {
     mat = (int*)calloc((n+1)*(m+1), sizeof(int));
 
     cudaMalloc(&dmat, (n+1)*(m+1)*sizeof(int));
-
+	cudaMemset(dmat, 0, (n+1)*(m+1)*sizeof(int));
 
     for(int i=0; i<n; i++) {
         int row = i*(m+1);
