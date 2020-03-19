@@ -25,7 +25,6 @@ int main() {
 	cudaMemset(&wlsize, 0, sizeof(unsigned));	// initialization.
 
 	unsigned hnelements[N];
-    srand(time(NULL));
 	for (unsigned ii = 0; ii < N; ++ii) {
 		hnelements[ii] = rand() % ELEPERTHREAD;
 	}
