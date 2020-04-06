@@ -10,14 +10,15 @@ int schedule_on_core(int core_id, int pid, int arrival_time, int burst_time,
     // Check if enough space is present in queue for the core
     int curr_length = cs_lengths[core_id];
 
-    if (curr_length >= curr_core_queue_lengths[core_id]) {
-        curr_core_queue_lengths[core_id] = curr_length*2;
-        // printf("Reallocing space %d for core %d\n", curr_core_queue_lengths[core_id], core_id);
-        cores_schedules[core_id] = (int*)realloc(cores_schedules[core_id], curr_core_queue_lengths[core_id]);
+    if (curr_length >= curr_core_queue_lengths[core_id]-1) {
+        curr_core_queue_lengths[core_id] = curr_length + 10;
+        printf("Reallocing space %d for core %d\n", curr_core_queue_lengths[core_id], core_id);
+        cores_schedules[core_id] = (int*)realloc(cores_schedules[core_id], curr_core_queue_lengths[core_id]*sizeof(int));
     }
 
     // int turnaround_core = cores_exec_time_left[core_id] + burst_time;
     cores_exec_time_left[core_id] += burst_time;
+    printf("Core_id %d, curr_length %d, queue_length %d\n", core_id, curr_length, curr_core_queue_lengths[core_id]);
     cores_schedules[core_id][curr_length] = pid;
     cs_lengths[core_id]=curr_length + 1;
 
@@ -30,7 +31,7 @@ int cpu_schedule(int N, int M, int* arrival_times, int* burst_times, int** cores
     int diff = 0;
     int curr_core_id;
     int curr_min_exec_time;
-    int flag = 0;
+    // int flag = 0;
 
     int *cores_exec_time_left = (int*)calloc(M, sizeof(int));
     int *curr_core_queue_lengths = (int*)calloc(M, sizeof(int));
@@ -45,7 +46,7 @@ int cpu_schedule(int N, int M, int* arrival_times, int* burst_times, int** cores
         curr_arrival_time = arrival_times[pid];
         diff = curr_arrival_time - last_arrival_time;
 
-        flag = 0;
+        // flag = 0;
         curr_min_exec_time = INT_MAX;
         curr_core_id = -1;
 
@@ -259,9 +260,9 @@ int gpu_schedule2(int N, int M, int* arrival_times, int* burst_times, int** core
 
         if (curr_length >= curr_core_queue_lengths[core_id]) {
             curr_core_queue_lengths[core_id] = curr_length + 10;
-            // printf("Reallocing space %d for core %d\n", curr_core_queue_lengths[core_id], core_id);
+            printf("Reallocing space %d for core %d\n", curr_core_queue_lengths[core_id], core_id);
             // cores_schedules[core_id] = (int*)realloc(cores_schedules[core_id], curr_length + 10);
-            int* new_arr = (int*)realloc(cores_schedules[core_id], curr_length + 10);
+            int* new_arr = (int*)realloc(cores_schedules[core_id], (curr_length + 10)*sizeof(int));
             if (new_arr != NULL) {
                 // realloc worked
                 cores_schedules[core_id] = new_arr;
