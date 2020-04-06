@@ -55,13 +55,13 @@ int cpu_schedule(int N, int M, int* arrival_times, int* burst_times, int** cores
                 cores_exec_time_left[core_id] = (cores_exec_time_left[core_id] > diff) ? (cores_exec_time_left[core_id] - diff):0;
             }
 
-            if(cores_exec_time_left[core_id] == 0) {
-                // printf("Core: %d, PID: %d, Exec Time 0\n", core_id, pid);
-                turnaround += schedule_on_core(core_id, pid, arrival_times[pid], burst_times[pid],
-                                               cores_exec_time_left, cores_schedules, cs_lengths, curr_core_queue_lengths);
-                flag = 1;
-                break;
-            }
+            // if(cores_exec_time_left[core_id] == 0) {
+            //     // printf("Core: %d, PID: %d, Exec Time 0\n", core_id, pid);
+            //     turnaround += schedule_on_core(core_id, pid, arrival_times[pid], burst_times[pid],
+            //                                    cores_exec_time_left, cores_schedules, cs_lengths, curr_core_queue_lengths);
+            //     flag = 1;
+            //     break;
+            // }
 
             if (curr_min_exec_time > cores_exec_time_left[core_id]) {
                 curr_core_id = core_id;
@@ -72,11 +72,11 @@ int cpu_schedule(int N, int M, int* arrival_times, int* burst_times, int** cores
 
         }
 
-        if (flag==0) {
+        // if (flag==0) {
             // printf("Core: %d, PID: %d\n", curr_core_id, pid);
             turnaround += schedule_on_core(curr_core_id, pid, arrival_times[pid], burst_times[pid],
                                            cores_exec_time_left, cores_schedules, cs_lengths, curr_core_queue_lengths);
-        }
+        // }
 
         // printf("PID %d finished\n", pid);
     }
@@ -86,6 +86,10 @@ int cpu_schedule(int N, int M, int* arrival_times, int* burst_times, int** cores
 #endif // CPU_CODE
 
 #ifdef GPU_CODE
+
+#include <thrust/device_vector.h>
+// #include <vector>
+// #include <algorithm>
 
 
 __global__ void find_core(int M, int* cores_exec_time_left, int diff, int last_pid_core, int last_core_exec_time_update,
@@ -191,13 +195,13 @@ int gpu_schedule(int N, int M, int* arrival_times, int* burst_times, int** cores
 
         // Check if enough space is present in queue for the core
         int curr_length = cs_lengths[cpu_curr_core_id];
-        // printf("Curr Length for core %d: %d\n", cpu_curr_core_id, curr_length);
+        printf("Curr Length for core %d: %d\n", cpu_curr_core_id, curr_length);
 
         if (curr_length >= curr_core_queue_lengths[cpu_curr_core_id]) {
-            curr_core_queue_lengths[cpu_curr_core_id] = curr_length*2;
-            // printf("Reallocing space %d for core %d\n", curr_core_queue_lengths[cpu_curr_core_id], cpu_curr_core_id);
+            curr_core_queue_lengths[cpu_curr_core_id] = curr_length + 8;
+            printf("Reallocing space %d for core %d\n", curr_core_queue_lengths[cpu_curr_core_id], cpu_curr_core_id);
             cores_schedules[cpu_curr_core_id] = (int*)realloc(cores_schedules[cpu_curr_core_id],
-                                                              curr_length*2);
+                                                              curr_length + 8);
         }
 
         cores_schedules[cpu_curr_core_id][curr_length] = pid;
@@ -208,7 +212,95 @@ int gpu_schedule(int N, int M, int* arrival_times, int* burst_times, int** cores
         last_core_exec_time_update = burst_times[pid];
     }
 
+
+
     // printf("Completed PID loop\n");
+    return turnaround;
+}
+
+
+struct advance_time {
+    const int diff_;
+    advance_time(int diff) : diff_(diff){}
+
+    __host__ __device__
+    int operator()(const int& x) const {
+        if (diff_ == 0)     return x;
+        else return (x >= diff_) ? (x-diff_) : 0;
+    }
+};
+
+
+int gpu_schedule2(int N, int M, int* arrival_times, int* burst_times, int** cores_schedules, int* cs_lengths) {
+    // thrust::device_vector<int> cores_schedules_vector[M];
+    // std::vector<int> cores_schedules_vector[M];
+    thrust::device_vector<int> cores_exec_time_left(M, 1);
+
+    int curr_arrival_time = 0;
+    int last_arrival_time = 0;
+    int diff = 0;
+
+    int turnaround = 0;
+
+    int *curr_core_queue_lengths = (int*)calloc(M, sizeof(int));
+    memset(cs_lengths, 0, M*sizeof(int));
+
+    for(int pid=0; pid<N; pid++) {
+        last_arrival_time = curr_arrival_time;
+        curr_arrival_time = arrival_times[pid];
+        diff = curr_arrival_time - last_arrival_time;
+
+        thrust::transform(cores_exec_time_left.begin(), cores_exec_time_left.end(),
+                            cores_exec_time_left.begin(), advance_time(diff));
+
+        int core_id = thrust::min_element(cores_exec_time_left.begin(), cores_exec_time_left.end()) - cores_exec_time_left.begin();
+
+        int curr_length = cs_lengths[core_id];
+
+        if (curr_length >= curr_core_queue_lengths[core_id]) {
+            curr_core_queue_lengths[core_id] = curr_length + 10;
+            // printf("Reallocing space %d for core %d\n", curr_core_queue_lengths[core_id], core_id);
+            // cores_schedules[core_id] = (int*)realloc(cores_schedules[core_id], curr_length + 10);
+            int* new_arr = (int*)realloc(cores_schedules[core_id], curr_length + 10);
+            if (new_arr != NULL) {
+                // realloc worked
+                cores_schedules[core_id] = new_arr;
+            }
+            else {
+                // realloc failed, try malloc with a smaller size?
+                new_arr = (int*)malloc((curr_length + 10)*sizeof(int));
+                if(new_arr != NULL) {
+                    // malloc worked, now memcpy and update length
+                    memcpy(new_arr, cores_schedules[core_id], curr_length*sizeof(int));
+                    free(cores_schedules[core_id]);
+                    cores_schedules[core_id] = new_arr;
+                    // curr_core_queue_lengths[core_id] = curr_length+10;
+                }
+                else {
+                    // malloc also failed, probably best to exit now, since anyways, there'll be a seg fault
+                    exit(1);
+                }
+
+            } // end of realloc-failure handle
+        } // end of mem allocation handling
+
+        cores_schedules[core_id][curr_length] = pid;
+        cs_lengths[core_id]=curr_length + 1;
+        // cores_schedules_vector[core_id].push_back(pid);
+
+        // int curr_exec_time = cores_exec_time_left[core_id] + burst_times[pid];
+        // cores_exec_time_left[core_id] = curr_exec_time;
+        cores_exec_time_left[core_id] += burst_times[pid];
+        turnaround += cores_exec_time_left[core_id];
+    }
+
+    // for(int core_id=0; core_id<M; core_id++) {
+    //     cs_lengths[core_id] = cores_schedules_vector[core_id].size();
+    //     int* arr = (int*)malloc(cs_lengths[core_id]*sizeof(int));
+    //     std::copy(cores_schedules_vector[core_id].begin(), cores_schedules_vector[core_id].end(), arr);
+    //     cores_schedules[core_id] = arr;
+    // }
+
     return turnaround;
 }
 
@@ -220,6 +312,6 @@ int schedule(int N, int M, int* arrival_times, int* burst_times, int** cores_sch
 #endif
 
 #ifdef GPU_CODE
-    return gpu_schedule(N, M, arrival_times, burst_times, cores_schedules, cs_lengths);
+    return gpu_schedule2(N, M, arrival_times, burst_times, cores_schedules, cs_lengths);
 #endif
 }
