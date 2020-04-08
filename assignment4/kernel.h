@@ -8,8 +8,7 @@ struct advance_time {
 
     __host__ __device__
     int operator()(const int& x) const {
-        if (diff_ == 0)     return x;
-        else return (x >= diff_) ? (x-diff_) : 0;
+        return (x > diff_) ? (x-diff_) : 0;
     }
 };
 
@@ -31,10 +30,12 @@ int gpu_schedule(int N, int M, int* arrival_times, int* burst_times, int** cores
         curr_arrival_time = arrival_times[pid];
         diff = curr_arrival_time - last_arrival_time;
 
-        thrust::transform(cores_exec_time_left.begin(), cores_exec_time_left.end(),
-                            cores_exec_time_left.begin(), advance_time(diff));
+        if (diff != 0)
+            thrust::transform(cores_exec_time_left.begin(), cores_exec_time_left.end(),
+                                cores_exec_time_left.begin(), advance_time(diff));
 
-        int core_id = thrust::min_element(cores_exec_time_left.begin(), cores_exec_time_left.end()) - cores_exec_time_left.begin();
+        int core_id = thrust::min_element(cores_exec_time_left.begin(), cores_exec_time_left.end())
+                      - cores_exec_time_left.begin();
 
         int curr_length = cs_lengths[core_id];
 
