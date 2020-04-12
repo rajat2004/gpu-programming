@@ -68,8 +68,9 @@ int gpu_schedule(int N, int M, int* arrival_times, int* burst_times, int** cores
         cores_schedules[core_id][curr_length] = pid;
         cs_lengths[core_id]=curr_length + 1;
 
-        cores_exec_time_left[core_id] += burst_times[pid];
-        turnaround += cores_exec_time_left[core_id];
+        int proc_turnaround = cores_exec_time_left[core_id] + burst_times[pid];
+        cores_exec_time_left[core_id] = proc_turnaround;
+        turnaround += proc_turnaround;
     }
 
     return turnaround;
